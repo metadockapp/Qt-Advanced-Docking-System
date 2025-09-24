@@ -891,7 +891,22 @@ void CDockAreaWidget::updateTitleBarVisibility()
             {
                 // Always show title bar if it contains title bar actions
                 if (CDockWidget* TopLevelWidget = Container->topLevelDockWidget())
+                {
                     Hidden |= TopLevelWidget->titleBarActions().empty();
+                }
+                else if (CDockManager::testConfigFlag(CDockManager::TabsAtBottom))
+                {
+                    Hidden = true;
+
+                    for (CDockWidget* DockWidget : Container->openedDockWidgets())
+                    {
+                        if (!DockWidget->titleBarActions().empty())
+                        {
+                            Hidden = false;
+                            break;
+                        }
+                    }
+                }
             }
             if (!Hidden && d->Flags.testFlag(HideSingleWidgetTitleBar))
             {
