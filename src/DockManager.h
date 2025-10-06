@@ -865,6 +865,11 @@ Q_SIGNALS:
      * The focused dock widget is the one that is highlighted in the GUI
      */
     void focusedDockWidgetChanged(ads::CDockWidget* old, ads::CDockWidget* now);
+
+    /**
+     * This signal is emitted if the layout changes because of a Widget or Area relocation.
+     */
+    void layoutChanged();
 }; // class DockManager
 } // namespace ads
 
