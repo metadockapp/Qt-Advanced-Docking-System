@@ -564,11 +564,23 @@ public:
     void setTitleBarActions(QList<QAction*> actions);
 
     /**
+     * Set the actions that will be shown in the dock widget title bar
+     * on right click (context menu)
+     */
+    void setContextMenuActions(QList<QAction*> actions);
+
+    /**
      * Returns a list of actions that will be inserted into the dock area title
      * bar if this dock widget becomes the current widget
      */
     virtual QList<QAction*> titleBarActions() const;
 
+     /**
+     * Returns a list of actions that will be inserted into the dock widget title bar
+     * on right click (context menu)
+     *
+     */
+    virtual QList<QAction*> contextMenuActions() const;
 
 #ifndef QT_NO_TOOLTIP
     /**

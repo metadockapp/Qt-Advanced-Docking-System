@@ -546,6 +546,13 @@ QMenu* CDockWidgetTab::buildContextMenu(QMenu *Menu)
     const bool isDetachable = isFloatable && !isFloating;
 	QAction* Action;
 
+    auto extraActions = d->DockWidget->contextMenuActions();
+
+    if (!extraActions.isEmpty()) {
+        Menu->addActions(extraActions);
+        Menu->addSeparator();
+    }
+
     if (!(isTopLevelArea && isFloating))
     {
 		Action = Menu->addAction(tr("Detach"), this, SLOT(detachDockWidget()));

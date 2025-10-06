@@ -92,6 +92,7 @@ struct DockWidgetPrivate
 	QSize ToolBarIconSizeFloating = QSize(24, 24);
 	bool IsFloatingTopLevel = false;
 	QList<QAction*> TitleBarActions;
+    QList<QAction*> ContextMenuActions;
 	CDockWidget::eMinimumSizeHintMode MinimumSizeHintMode = CDockWidget::MinimumSizeHintFromDockWidget;
 	WidgetFactory* Factory = nullptr;
 	QPointer<CAutoHideTab> SideTabWidget;
@@ -1206,6 +1207,12 @@ bool CDockWidget::closeDockWidgetInternal(bool ForceClose)
 	return true;
 }
 
+//============================================================================
+void CDockWidget::setContextMenuActions(QList<QAction*> actions)
+{
+    d->ContextMenuActions = actions;
+}
+
 
 //============================================================================
 void CDockWidget::setTitleBarActions(QList<QAction*> actions)
@@ -1220,6 +1227,11 @@ QList<QAction*> CDockWidget::titleBarActions() const
 	return d->TitleBarActions;
 }
 
+//============================================================================
+QList<QAction*> CDockWidget::contextMenuActions() const
+{
+    return d->ContextMenuActions;
+}
 
 //============================================================================
 void CDockWidget::showFullScreen()
