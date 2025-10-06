@@ -1318,6 +1318,8 @@ void CDockManager::notifyWidgetOrAreaRelocation(QWidget* DroppedWidget)
 	{
 		d->FocusController->notifyWidgetOrAreaRelocation(DroppedWidget);
 	}
+
+    Q_EMIT layoutChanged();
 }
 
 
