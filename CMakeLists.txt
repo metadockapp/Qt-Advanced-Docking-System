@@ -35,9 +35,9 @@ option(BUILD_STATIC "Build the static library" OFF)
 option(BUILD_EXAMPLES "Build the examples" ON)
 
 if("${CMAKE_SIZEOF_VOID_P}" STREQUAL "4")
-    set(ads_PlatformDir "x86")
+    set(ads_PlatformDir "")
 else()
-    set(ads_PlatformDir "x64")
+    set(ads_PlatformDir "")
 endif()
 
 add_subdirectory(src)
