@@ -575,9 +575,9 @@ public:
      */
     virtual QList<QAction*> titleBarActions() const;
 
-     /**
-     * Returns a list of actions that will be inserted into the dock widget title bar
-     * on right click (context menu)
+    /**
+     * Returns a list of actions that will be inserted into the dock widget title
+     * bar on right click (context menu)
      *
      */
     virtual QList<QAction*> contextMenuActions() const;

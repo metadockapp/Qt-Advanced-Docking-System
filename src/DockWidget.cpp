@@ -1177,6 +1177,7 @@ bool CDockWidget::closeDockWidgetInternal(bool ForceClose)
 
 	if (features().testFlag(CDockWidget::DockWidgetDeleteOnClose))
 	{
+	    Q_EMIT closed();
 		// If the dock widget is floating, then we check if we also need to
 		// delete the floating widget
 		if (isFloating())
@@ -1197,7 +1198,6 @@ bool CDockWidget::closeDockWidgetInternal(bool ForceClose)
 			d->DockArea->autoHideDockContainer()->cleanupAndDelete();
 		}
 		deleteDockWidget();
-		Q_EMIT closed();
 	}
 	else
 	{
