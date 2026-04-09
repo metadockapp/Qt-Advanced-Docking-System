@@ -30,12 +30,63 @@
 //                                   INCLUDES
 //============================================================================
 #include <QSplitter>
+#include <QSplitterHandle>
+#include <vector>
+#include "windows.h"
 
 #include "ads_globals.h"
 
 namespace ads
 {
 struct DockSplitterPrivate;
+
+// Forward declaration
+class CDockSplitterHandle;
+
+/**
+ * Overlay widget that draws the splitter line above native windows
+ */
+class SplitterOverlay : public QWidget
+{
+	Q_OBJECT
+private:
+	CDockSplitterHandle* handle;
+#ifdef Q_OS_WIN
+	std::vector<HWND> hiddenWindows;
+	void hideNativeWindows();
+	void restoreNativeWindows();
+	static BOOL CALLBACK EnumChildProc(HWND hwnd, LPARAM lParam);
+#endif
+public:
+	SplitterOverlay(CDockSplitterHandle* handle, QWidget* parent = nullptr);
+	~SplitterOverlay();
+	void updatePosition();
+protected:
+	void paintEvent(QPaintEvent *event) override;
+};
+
+/**
+ * Custom splitter handle that stays above native windows during drag operations
+ */
+class ADS_EXPORT CDockSplitterHandle : public QSplitterHandle
+{
+	Q_OBJECT
+	friend class SplitterOverlay;
+private:
+	SplitterOverlay* overlay;
+	void createOverlay();
+	void destroyOverlay();
+
+public:
+	CDockSplitterHandle(Qt::Orientation orientation, QSplitter *parent);
+	~CDockSplitterHandle() override;
+
+protected:
+	void mousePressEvent(QMouseEvent *event) override;
+	void mouseMoveEvent(QMouseEvent *event) override;
+	void mouseReleaseEvent(QMouseEvent *event) override;
+	void paintEvent(QPaintEvent *event) override;
+};
 
 /**
  * Splitter used internally instead of QSplitter with some additional
@@ -47,6 +98,12 @@ class ADS_EXPORT CDockSplitter : public QSplitter
 private:
 	DockSplitterPrivate* d;
 	friend struct DockSplitterPrivate;
+
+protected:
+	/**
+	 * Override to create custom splitter handle that stays above native windows
+	 */
+	QSplitterHandle* createHandle() override;
 
 public:
 	CDockSplitter(QWidget *parent = Q_NULLPTR);
