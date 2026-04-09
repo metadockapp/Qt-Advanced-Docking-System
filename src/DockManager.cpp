@@ -870,6 +870,7 @@ bool CDockManager::restoreState(const QByteArray &state, int version)
 		show();
 	}
 	Q_EMIT stateRestored();
+	Q_EMIT layoutChanged();
 	return Result;
 }
 

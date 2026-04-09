@@ -38,6 +38,7 @@
 
 QT_FORWARD_DECLARE_CLASS(QSettings)
 QT_FORWARD_DECLARE_CLASS(QMenu)
+QT_FORWARD_DECLARE_CLASS(QSplitterHandle)
 
 namespace ads
 {
@@ -870,6 +871,11 @@ Q_SIGNALS:
      * This signal is emitted if the layout changes because of a Widget or Area relocation.
      */
     void layoutChanged();
+
+    /**
+     * This signal is emitted when a new splitter handle is created.
+     */
+    void splitterHandleCreated(QSplitterHandle* handle);
 }; // class DockManager
 } // namespace ads
 
