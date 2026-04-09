@@ -1491,7 +1491,13 @@ CAutoHideDockContainer* CDockContainerWidget::createAndSetupAutoHideContainer(
         DockWidget->setDockManager(d->DockManager); // Auto hide Dock Container needs a valid dock manager
 	}
 
-	return autoHideSideBar(area)->insertDockWidget(TabIndex, DockWidget);
+	auto SideBar = autoHideSideBar(area);
+	if (!SideBar)
+	{
+		return nullptr;
+	}
+
+	return SideBar->insertDockWidget(TabIndex, DockWidget);
 }
 
 
@@ -2175,11 +2181,16 @@ QRect CDockContainerWidget::contentRect() const
 	else
 	{
 		auto ContentRect = this->rect();
+		auto LeftBar = autoHideSideBar(SideBarLeft);
+		auto TopBar = autoHideSideBar(SideBarTop);
+		auto RightBar = autoHideSideBar(SideBarRight);
+		auto BottomBar = autoHideSideBar(SideBarBottom);
+
 		ContentRect.adjust(
-			autoHideSideBar(SideBarLeft)->sizeHint().width(),
-			autoHideSideBar(SideBarTop)->sizeHint().height(),
-			-autoHideSideBar(SideBarRight)->sizeHint().width(),
-			-autoHideSideBar(SideBarBottom)->sizeHint().height());
+			LeftBar ? LeftBar->sizeHint().width() : 0,
+			TopBar ? TopBar->sizeHint().height() : 0,
+			RightBar ? -RightBar->sizeHint().width() : 0,
+			BottomBar ? -BottomBar->sizeHint().height() : 0);
 
 		return ContentRect;
 	}

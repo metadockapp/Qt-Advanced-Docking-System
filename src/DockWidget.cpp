@@ -1345,7 +1345,11 @@ void CDockWidget::setAutoHide(bool Enable, SideBarLocation Location, int TabInde
 	else
 	{
 		auto area = (SideBarNone == Location) ? DockArea->calculateSideTabBarArea() : Location;
-		dockContainer()->createAndSetupAutoHideContainer(area, this, TabIndex);
+		auto Container = dockContainer();
+		if (Container)
+		{
+			Container->createAndSetupAutoHideContainer(area, this, TabIndex);
+		}
 	}
 }
 

@@ -717,7 +717,18 @@ void CAutoHideDockContainer::moveToNewSideBarLocation(SideBarLocation NewSideBar
 	}
 
 	auto OldOrientation = orientation();
-	auto SideBar = dockContainer()->autoHideSideBar(NewSideBarLocation);
+	auto Container = dockContainer();
+	if (!Container)
+	{
+		return;
+	}
+
+	auto SideBar = Container->autoHideSideBar(NewSideBarLocation);
+	if (!SideBar)
+	{
+		return;
+	}
+
 	SideBar->addAutoHideWidget(this, TabIndex);
 	// If we move a horizontal auto hide container to a vertical position
 	// then we resize it to the original dock widget size, to avoid
