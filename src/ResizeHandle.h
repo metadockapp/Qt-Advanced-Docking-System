@@ -33,6 +33,9 @@ protected:
 	void mouseMoveEvent(QMouseEvent *) override;
     void mousePressEvent(QMouseEvent *) override;
     void mouseReleaseEvent(QMouseEvent *) override;
+    void enterEvent(QEnterEvent *) override;
+    void leaveEvent(QEvent *) override;
+    void paintEvent(QPaintEvent *) override;
 
 public:
 	using Super = QFrame;

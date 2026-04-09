@@ -16,6 +16,8 @@
 #include <QMouseEvent>
 #include <QRubberBand>
 #include <QPointer>
+#include <QPainter>
+#include <QEnterEvent>
 
 #include "ads_globals.h"
 
@@ -31,6 +33,7 @@ struct ResizeHandlePrivate
 	QWidget* Target = nullptr;
 	int MouseOffset = 0;
 	bool Pressed = false;
+	bool Hovered = false;
 	int MinSize = 0;
 	int MaxSize = 1;
 	QPointer<QRubberBand> RubberBand;
@@ -319,6 +322,50 @@ void CResizeHandle::setOpaqueResize(bool opaque)
 bool CResizeHandle::opaqueResize() const
 {
 	return d->OpaqueResize;
+}
+
+
+//============================================================================
+void CResizeHandle::enterEvent(QEnterEvent* e)
+{
+	Q_UNUSED(e);
+	d->Hovered = true;
+	update();
+	Super::enterEvent(e);
+}
+
+
+//============================================================================
+void CResizeHandle::leaveEvent(QEvent* e)
+{
+	d->Hovered = false;
+	update();
+	Super::leaveEvent(e);
+}
+
+
+//============================================================================
+void CResizeHandle::paintEvent(QPaintEvent* e)
+{
+	Super::paintEvent(e);
+
+	if (d->Hovered || d->Pressed)
+	{
+		QPainter painter(this);
+		QColor highlightColor = palette().color(QPalette::Highlight);
+
+		// Use fully opaque color when pressed, very visible when hovered
+		if (d->Pressed)
+		{
+			highlightColor.setAlpha(255);
+		}
+		else
+		{
+			highlightColor.setAlpha(180);
+		}
+
+		painter.fillRect(rect(), highlightColor);
+	}
 }
 } // namespace ads
 
