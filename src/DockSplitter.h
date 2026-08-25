@@ -32,9 +32,12 @@
 #include <QSplitter>
 #include <QSplitterHandle>
 #include <vector>
-#include "windows.h"
 
 #include "ads_globals.h"
+
+#ifdef Q_OS_WIN
+#include "windows.h"
+#endif
 
 namespace ads
 {

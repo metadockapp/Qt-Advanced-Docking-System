@@ -36,6 +36,7 @@
 #include <QXmlStreamWriter>
 
 #include "DockContainerWidget.h"
+#include "DockManager.h"
 #include "DockWidgetTab.h"
 #include "DockFocusController.h"
 #include "AutoHideDockContainer.h"
@@ -213,7 +214,12 @@ void CAutoHideSideBar::insertTab(int Index, CAutoHideTab* SideTab)
 CAutoHideDockContainer* CAutoHideSideBar::insertDockWidget(int Index, CDockWidget* DockWidget)
 {
 	auto AutoHideContainer = new CAutoHideDockContainer(DockWidget, d->SideTabArea, d->ContainerWidget);
-	DockWidget->dockManager()->dockFocusController()->clearDockWidgetFocus(DockWidget);
+	// dockFocusController() is only non-null when the FocusHighlighting config
+	// flag is set - see CDockManager::dockFocusController().
+	if (CDockManager::testConfigFlag(CDockManager::FocusHighlighting))
+	{
+		DockWidget->dockManager()->dockFocusController()->clearDockWidgetFocus(DockWidget);
+	}
 	auto Tab = AutoHideContainer->autoHideTab();
 	DockWidget->setSideTabWidget(Tab);
 	insertTab(Index, Tab);

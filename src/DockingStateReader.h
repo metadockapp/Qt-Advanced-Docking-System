@@ -21,7 +21,7 @@ namespace ads
 class CDockingStateReader : public QXmlStreamReader
 {
 private:
-	int m_FileVersion;
+	int m_FileVersion = 0;
 
 public:
 	using QXmlStreamReader::QXmlStreamReader;

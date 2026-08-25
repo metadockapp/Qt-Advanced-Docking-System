@@ -313,7 +313,8 @@ CDockSplitter::CDockSplitter(Qt::Orientation orientation, QWidget *parent)
 	: QSplitter(orientation, parent),
 	  d(new DockSplitterPrivate(this))
 {
-
+    setProperty("ads-splitter", QVariant(true));
+	setChildrenCollapsible(false);
 }
 
 //============================================================================

@@ -1689,7 +1689,7 @@ CDockAreaWidget* CDockContainerWidget::dockAreaAt(const QPoint& GlobalPos) const
 //============================================================================
 CDockAreaWidget* CDockContainerWidget::dockArea(int Index) const
 {
-	return (Index < dockAreaCount()) ? d->DockAreas[Index] : nullptr;
+	return (Index >= 0 && Index < dockAreaCount()) ? d->DockAreas[Index] : nullptr;
 }
 
 
