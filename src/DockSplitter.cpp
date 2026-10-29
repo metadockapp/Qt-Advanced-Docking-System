@@ -140,7 +140,7 @@ void SplitterOverlay::restoreNativeWindows()
 	// Restore all hidden windows
 	for (HWND hwnd : this->hiddenWindows) {
 		if (IsWindow(hwnd)) {
-			ShowWindow(hwnd, SW_SHOW);
+			ShowWindow(hwnd, SW_SHOWNA);
 		}
 	}
 	this->hiddenWindows.clear();
@@ -235,6 +235,11 @@ void CDockSplitterHandle::createOverlay()
 void CDockSplitterHandle::destroyOverlay()
 {
 	if (this->overlay) {
+#ifdef Q_OS_WIN
+		this->overlay->restoreNativeWindows();
+#endif
+		// Hidden now: until the deferred delete runs it must not paint through a dangling handle.
+		this->overlay->hide();
 		this->overlay->deleteLater();
 		this->overlay = nullptr;
 	}
@@ -244,7 +249,11 @@ void CDockSplitterHandle::destroyOverlay()
 void CDockSplitterHandle::mousePressEvent(QMouseEvent *event)
 {
 	QSplitterHandle::mousePressEvent(event);
-	this->createOverlay();
+
+	// QSplitter drags with the left button only.
+	if (event->button() == Qt::LeftButton) {
+		this->createOverlay();
+	}
 }
 
 //============================================================================
@@ -252,17 +261,39 @@ void CDockSplitterHandle::mouseMoveEvent(QMouseEvent *event)
 {
 	QSplitterHandle::mouseMoveEvent(event);
 
-	// Update overlay position to track the handle as it moves
-	if (this->overlay) {
-		this->overlay->updatePosition();
+	if (!this->overlay) {
+		return;
 	}
+
+	// The release was lost (capture stolen, Alt+Tab mid-drag): end the drag here,
+	// or the native windows stay hidden until this handle is dragged again.
+	const bool isLeftHeld = event->buttons() & Qt::LeftButton;
+	if (!isLeftHeld) {
+		this->destroyOverlay();
+		return;
+	}
+
+	this->overlay->updatePosition();
 }
 
 //============================================================================
 void CDockSplitterHandle::mouseReleaseEvent(QMouseEvent *event)
 {
+	// Show the hidden native windows before the splitter applies the new sizes.
+	// Chromium (WebView2, Electron apps) resized while hidden can come back without
+	// painting a frame at the new size, leaving the dock blank until the next resize.
+	if (event->button() == Qt::LeftButton) {
+		this->destroyOverlay();
+	}
+
 	QSplitterHandle::mouseReleaseEvent(event);
+}
+
+//============================================================================
+void CDockSplitterHandle::hideEvent(QHideEvent *event)
+{
 	this->destroyOverlay();
+	QSplitterHandle::hideEvent(event);
 }
 
 //============================================================================

@@ -57,13 +57,16 @@ private:
 #ifdef Q_OS_WIN
 	std::vector<HWND> hiddenWindows;
 	void hideNativeWindows();
-	void restoreNativeWindows();
 	static BOOL CALLBACK EnumChildProc(HWND hwnd, LPARAM lParam);
 #endif
 public:
 	SplitterOverlay(CDockSplitterHandle* handle, QWidget* parent = nullptr);
 	~SplitterOverlay();
 	void updatePosition();
+#ifdef Q_OS_WIN
+	/** @brief Shows the windows hidden for the drag again; a second call does nothing. */
+	void restoreNativeWindows();
+#endif
 protected:
 	void paintEvent(QPaintEvent *event) override;
 };
@@ -88,6 +91,7 @@ protected:
 	void mousePressEvent(QMouseEvent *event) override;
 	void mouseMoveEvent(QMouseEvent *event) override;
 	void mouseReleaseEvent(QMouseEvent *event) override;
+	void hideEvent(QHideEvent *event) override;
 	void paintEvent(QPaintEvent *event) override;
 };
 
