@@ -102,6 +102,7 @@ static CDockManager::AutoHideFlags StaticAutoHideConfigFlags; // auto hide featu
 static QVector<QVariant> StaticConfigParams(CDockManager::ConfigParamCount);
 
 static QString FloatingContainersTitle;
+static QList<QPointer<CDockManager>> CrossManagerDropManagers;
 
 /**
  * Private data class of CDockManager class (pimpl)
@@ -842,6 +843,46 @@ CDockOverlay* CDockManager::dockAreaOverlay() const
 const QList<CDockContainerWidget*> CDockManager::dockContainers() const
 {
 	return d->Containers;
+}
+
+
+//============================================================================
+void CDockManager::setCrossManagerDropEnabled(bool Enabled)
+{
+	CrossManagerDropManagers.removeAll(QPointer<CDockManager>(this));
+	if (Enabled)
+	{
+		CrossManagerDropManagers.append(this);
+	}
+}
+
+
+//============================================================================
+bool CDockManager::isCrossManagerDropEnabled() const
+{
+	for (const auto& Manager : CrossManagerDropManagers)
+	{
+		if (Manager == this)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+
+//============================================================================
+QList<CDockManager*> CDockManager::crossManagerDropTargets()
+{
+	CrossManagerDropManagers.removeAll(QPointer<CDockManager>());
+	QList<CDockManager*> Managers;
+	for (const auto& Manager : CrossManagerDropManagers)
+	{
+		Managers.append(Manager.data());
+	}
+
+	return Managers;
 }
 
 

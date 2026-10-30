@@ -16,6 +16,7 @@
 #include <QApplication>
 #include <QPainter>
 #include <QKeyEvent>
+#include <QPointer>
 
 #include "DockWidget.h"
 #include "DockAreaWidget.h"
@@ -24,6 +25,10 @@
 #include "DockOverlay.h"
 #include "AutoHideDockContainer.h"
 #include "ads_globals.h"
+
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 
 namespace ads
 {
@@ -40,6 +45,9 @@ struct FloatingDragPreviewPrivate
 	QPoint DragStartMousePosition;
 	CDockManager* DockManager;
 	CDockContainerWidget *DropContainer = nullptr;
+	// The manager whose overlays are shown. It differs from DockManager while
+	// the cursor is over a container of another manager (cross-manager drop).
+	QPointer<CDockManager> OverlayManager;
 	qreal WindowOpacity;
 	bool Hidden = false;
 	QPixmap ContentPreviewPixmap;
@@ -75,14 +83,118 @@ struct FloatingDragPreviewPrivate
 	}
 
 	/**
+	 * Returns the manager whose overlays are currently in use
+	 */
+	CDockManager* overlayManager() const
+	{
+		return OverlayManager ? OverlayManager.data() : DockManager;
+	}
+
+	/**
+	 * Hides the overlays of the source manager and of the current overlay
+	 * manager
+	 */
+	void hideOverlays()
+	{
+		DockManager->containerOverlay()->hideOverlay();
+		DockManager->dockAreaOverlay()->hideOverlay();
+		if (OverlayManager && OverlayManager != DockManager)
+		{
+			OverlayManager->containerOverlay()->hideOverlay();
+			OverlayManager->dockAreaOverlay()->hideOverlay();
+		}
+	}
+
+	/**
+	 * Returns true if the drop container belongs to another dock manager
+	 */
+	bool isCrossManagerDrop() const
+	{
+		return DropContainer && DropContainer->dockManager() != DockManager;
+	}
+
+	/**
+	 * Returns the containers a drop may land in: the source manager's, plus
+	 * those of every other manager when cross-manager drops are enabled
+	 */
+	QList<CDockContainerWidget*> dropCandidates() const
+	{
+		QList<CDockContainerWidget*> Containers = DockManager->dockContainers();
+		if (!DockManager->isCrossManagerDropEnabled())
+		{
+			return Containers;
+		}
+
+		for (auto Manager : CDockManager::crossManagerDropTargets())
+		{
+			// A minimized window keeps its normal geometry, so it would still
+			// match the cursor
+			if (Manager != DockManager && !Manager->window()->isMinimized())
+			{
+				Containers.append(Manager->dockContainers());
+			}
+		}
+
+		return Containers;
+	}
+
+	/**
+	 * Returns true if Candidate is in front of Current. Containers of one
+	 * manager compare by activation order (isInFrontOf). Containers of
+	 * different managers cannot: every manager's main container reports
+	 * zOrderIndex() 0, so they compare by the real window stacking order.
+	 */
+	static bool isContainerInFront(CDockContainerWidget* Candidate, CDockContainerWidget* Current)
+	{
+		if (Candidate->dockManager() == Current->dockManager())
+		{
+			return Candidate->isInFrontOf(Current);
+		}
+
+		return isWindowAbove(Candidate->window(), Current->window());
+	}
+
+	/**
+	 * Returns true if top-level window Upper is stacked above Lower
+	 */
+	static bool isWindowAbove(QWidget* Upper, QWidget* Lower)
+	{
+		if (Upper == Lower)
+		{
+			return false;
+		}
+
+#ifdef Q_OS_WIN
+		HWND UpperHandle = reinterpret_cast<HWND>(Upper->winId());
+		for (HWND Handle = GetWindow(reinterpret_cast<HWND>(Lower->winId()), GW_HWNDPREV);
+			Handle; Handle = GetWindow(Handle, GW_HWNDPREV))
+		{
+			if (Handle == UpperHandle)
+			{
+				return true;
+			}
+		}
+#endif
+		// ponytail: no stacking query off Windows, so the first candidate
+		// (the source manager's) wins; add one per platform when needed.
+		return false;
+	}
+
+	/**
+	 * Emits crossManagerDropRequested() on the source manager for a drop on a
+	 * container of another manager
+	 */
+	void requestCrossManagerDrop(const QPoint& GlobalPos, DockWidgetArea DockDropArea,
+		DockWidgetArea ContainerDropArea);
+
+	/**
 	 * Cancel dragging and emit the draggingCanceled event
 	 */
 	void cancelDragging()
 	{
 		Canceled = true;
 		Q_EMIT _this->draggingCanceled();
-		DockManager->containerOverlay()->hideOverlay();
-		DockManager->dockAreaOverlay()->hideOverlay();
+		hideOverlays();
 		_this->close();
 	}
 
@@ -156,7 +268,7 @@ void FloatingDragPreviewPrivate::updateDropOverlays(const QPoint &GlobalPos)
 	}
 	else
 	{
-		auto Containers = DockManager->dockContainers();
+		auto Containers = dropCandidates();
 		for (auto ContainerWidget : Containers)
 		{
 			if (!ContainerWidget->isVisible())
@@ -167,7 +279,7 @@ void FloatingDragPreviewPrivate::updateDropOverlays(const QPoint &GlobalPos)
 			QPoint MappedPos = ContainerWidget->mapFromGlobal(GlobalPos);
 			if (ContainerWidget->rect().contains(MappedPos))
 			{
-				if (!TopContainer || ContainerWidget->isInFrontOf(TopContainer))
+				if (!TopContainer || isContainerInFront(ContainerWidget, TopContainer))
 				{
 					TopContainer = ContainerWidget;
 				}
@@ -176,8 +288,18 @@ void FloatingDragPreviewPrivate::updateDropOverlays(const QPoint &GlobalPos)
 	}
 
 	DropContainer = TopContainer;
-	auto ContainerOverlay = DockManager->containerOverlay();
-	auto DockAreaOverlay = DockManager->dockAreaOverlay();
+
+	// Each manager owns its overlays, so moving onto a container of another
+	// manager switches to that manager's overlays.
+	CDockManager* TargetManager = TopContainer ? TopContainer->dockManager() : DockManager;
+	if (TargetManager != overlayManager())
+	{
+		hideOverlays();
+		OverlayManager = TargetManager;
+	}
+
+	auto ContainerOverlay = TargetManager->containerOverlay();
+	auto DockAreaOverlay = TargetManager->dockAreaOverlay();
 
 	if (!TopContainer)
 	{
@@ -190,6 +312,7 @@ void FloatingDragPreviewPrivate::updateDropOverlays(const QPoint &GlobalPos)
 		return;
 	}
 
+	const bool IsCrossManager = TargetManager != DockManager;
 	auto DockDropArea = DockAreaOverlay->dropAreaUnderCursor(GlobalPos);
 	auto ContainerDropArea = ContainerOverlay->dropAreaUnderCursor(GlobalPos);
 
@@ -197,7 +320,7 @@ void FloatingDragPreviewPrivate::updateDropOverlays(const QPoint &GlobalPos)
 
 	// Include the overlay widget we're dragging as a visible widget
 	auto dockAreaWidget = qobject_cast<CDockAreaWidget*>(Content);
-	if (dockAreaWidget && dockAreaWidget->isAutoHide())
+	if (!IsCrossManager && dockAreaWidget && dockAreaWidget->isAutoHide())
 	{
 		VisibleDockAreas++;
 	}
@@ -213,7 +336,9 @@ void FloatingDragPreviewPrivate::updateDropOverlays(const QPoint &GlobalPos)
 		AllowedContainerAreas.setFlag(CenterDockWidgetArea, DockArea->allowedAreas().testFlag(CenterDockWidgetArea));
 	}
 
-	if (isContentPinnable())
+	// A cross-manager drop is handed to the application, which places dock
+	// widgets in dock areas only, so the auto-hide side bars are not offered.
+	if (isContentPinnable() && !IsCrossManager)
 	{
 		AllowedContainerAreas |= AutoHideDockAreas;
 	}
@@ -247,7 +372,7 @@ void FloatingDragPreviewPrivate::updateDropOverlays(const QPoint &GlobalPos)
 		// it does not make sense to show a dock overlay because the dock area
 		// would be removed and inserted at the same position. Only auto hide
 		// area is allowed
-		if (VisibleDockAreas == 1)
+		if (VisibleDockAreas == 1 && !IsCrossManager)
 		{
 			ContainerOverlay->setAllowedAreas(AutoHideDockAreas);
 		}
@@ -264,6 +389,51 @@ void FloatingDragPreviewPrivate::updateDropOverlays(const QPoint &GlobalPos)
 	{
 		setHidden(DockDropArea != InvalidDockWidgetArea || ContainerDropArea != InvalidDockWidgetArea);
 	}
+}
+
+
+//============================================================================
+void FloatingDragPreviewPrivate::requestCrossManagerDrop(const QPoint& GlobalPos,
+	DockWidgetArea DockDropArea, DockWidgetArea ContainerDropArea)
+{
+	CDockManager* TargetManager = DropContainer->dockManager();
+	CDockAreaWidget* TargetArea = nullptr;
+	DockWidgetArea Area = DockDropArea;
+	int TabIndex = -1;
+	if (DockDropArea != InvalidDockWidgetArea)
+	{
+		TargetArea = DropContainer->dockAreaAt(GlobalPos);
+		TabIndex = TargetManager->dockAreaOverlay()->tabIndexUnderCursor();
+	}
+	else
+	{
+		Area = ContainerDropArea;
+		// Same rule as a local drop: the center of a container with a single
+		// dock area tabifies into that area
+		if (DropContainer->visibleDockAreaCount() <= 1 && CenterDockWidgetArea == Area)
+		{
+			TargetArea = DropContainer->dockAreaAt(GlobalPos);
+		}
+		TabIndex = TargetManager->containerOverlay()->tabIndexUnderCursor();
+	}
+
+	QList<CDockWidget*> DockWidgets;
+	if (auto DockWidget = qobject_cast<CDockWidget*>(Content))
+	{
+		DockWidgets.append(DockWidget);
+	}
+	else if (auto DockArea = qobject_cast<CDockAreaWidget*>(Content))
+	{
+		DockWidgets = DockArea->openedDockWidgets();
+	}
+
+	if (DockWidgets.isEmpty())
+	{
+		return;
+	}
+
+	Q_EMIT DockManager->crossManagerDropRequested(DockWidgets, DropContainer, Area,
+		TargetArea, TabIndex);
 }
 
 
@@ -453,8 +623,7 @@ void CFloatingDragPreview::cancelDraggingSilently()
 {
 	// Tear down without performing a drop and without emitting draggingCanceled.
 	d->Canceled = true;
-	d->DockManager->containerOverlay()->hideOverlay();
-	d->DockManager->dockAreaOverlay()->hideOverlay();
+	d->hideOverlays();
 	close();
 }
 
@@ -486,9 +655,19 @@ void CFloatingDragPreview::finishDragging()
 	ADS_PRINT("CFloatingDragPreview::finishDragging");
 
 	const QPoint GlobalPos = d->cursorPos();
-	auto DockDropArea = d->DockManager->dockAreaOverlay()->visibleDropAreaUnderCursor(GlobalPos);
-	auto ContainerDropArea = d->DockManager->containerOverlay()->visibleDropAreaUnderCursor(GlobalPos);
+	auto OverlayManager = d->overlayManager();
+	auto DockDropArea = OverlayManager->dockAreaOverlay()->visibleDropAreaUnderCursor(GlobalPos);
+	auto ContainerDropArea = OverlayManager->containerOverlay()->visibleDropAreaUnderCursor(GlobalPos);
 	bool ValidDropArea = (DockDropArea != InvalidDockWidgetArea)  || (ContainerDropArea != InvalidDockWidgetArea);
+
+	// The dock widgets stay where they are; the application moves them.
+	if (ValidDropArea && d->isCrossManagerDrop())
+	{
+		d->requestCrossManagerDrop(GlobalPos, DockDropArea, ContainerDropArea);
+		this->close();
+		d->hideOverlays();
+		return;
+	}
 
 	// Non floatable auto hide widgets should stay in its current auto hide
 	// state if they are dragged into a floating window
@@ -525,8 +704,7 @@ void CFloatingDragPreview::finishDragging()
 	}
 
 	this->close();
-	d->DockManager->containerOverlay()->hideOverlay();
-	d->DockManager->dockAreaOverlay()->hideOverlay();
+	d->hideOverlays();
 }
 
 
