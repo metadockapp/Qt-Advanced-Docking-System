@@ -91,7 +91,7 @@ public:
 	/**
 	 * Virtual Destructor
 	 */
-	virtual ~CDockWidgetTab();
+	~CDockWidgetTab() override;
 
 	/**
 	 * Returns true, if this is the active tab
@@ -150,6 +150,11 @@ public:
 	 * This function returns true if the assigned dock widget is closable
 	 */
 	bool isClosable() const;
+
+	/**
+	 * This function returns true if the assigned dock widget is floatable
+	 */
+	bool isFloatable() const;
 
 	/**
 	* Track event ToolTipChange and set child ToolTip 
