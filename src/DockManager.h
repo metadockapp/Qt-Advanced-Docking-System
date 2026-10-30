@@ -512,6 +512,24 @@ public:
 	const QList<CDockContainerWidget*> dockContainers() const;
 
 	/**
+	 * Lets dock widgets be dragged between this dock manager and every other
+	 * dock manager that enables it. A drop on another manager does not move
+	 * anything: it emits crossManagerDropRequested() on the source manager,
+	 * and the application performs the move. Disabled by default.
+	 */
+	void setCrossManagerDropEnabled(bool Enabled);
+
+	/**
+	 * Returns true if cross-manager drops are enabled for this manager
+	 */
+	bool isCrossManagerDropEnabled() const;
+
+	/**
+	 * Returns every live dock manager that has cross-manager drops enabled
+	 */
+	static QList<CDockManager*> crossManagerDropTargets();
+
+	/**
 	 * Returns the list of all floating widgets
 	 */
 	const QList<CFloatingDockContainer*> floatingWidgets() const;
@@ -919,6 +937,19 @@ Q_SIGNALS:
      * This signal is emitted when a new splitter handle is created.
      */
     void splitterHandleCreated(QSplitterHandle* handle);
+
+    /**
+     * This signal is emitted on the source dock manager when dock widgets are
+     * dropped on a container of another dock manager (see
+     * setCrossManagerDropEnabled()). Nothing has been moved yet: the dock
+     * widgets are still in this manager. TargetArea is the dock area dropped
+     * on, or nullptr for a drop on the container's outer edges. TabIndex is
+     * the tab insert index, or -1. The drag is still unwinding when this is
+     * emitted, so a handler must defer closing or deleting the dock widgets.
+     */
+    void crossManagerDropRequested(const QList<ads::CDockWidget*>& DockWidgets,
+        ads::CDockContainerWidget* TargetContainer, ads::DockWidgetArea Area,
+        ads::CDockAreaWidget* TargetArea, int TabIndex);
 }; // class DockManager
 } // namespace ads
 
